@@ -9,7 +9,7 @@ import java.util.List;
 
 @Service
 @Log4j2
-@ConditionalOnProperty(name = "app.use-s3", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.use-s3", havingValue = "nonexistent")
 public class DummyS3Service extends S3ServiceBase {
 
     @Override

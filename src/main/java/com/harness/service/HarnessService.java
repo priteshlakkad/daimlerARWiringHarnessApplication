@@ -11,9 +11,17 @@ import java.util.stream.Collectors;
 @Service
 public class HarnessService {
 
-    private final S3ServiceBase  s3;
+    private final S3ServiceBase s3;
 
-    public HarnessService(S3ServiceBase  s3) {
+    /**
+     * The storage backend is injected based on application configuration:
+     * - If app.use-s3=true: S3Service bean is injected (AWS S3)
+     * - If app.use-s3=false: LocalStorageService bean is injected (local filesystem)
+     *
+     * This allows the same API and service logic to work with different storage backends
+     * without creating duplicate controllers or services.
+     */
+    public HarnessService(S3ServiceBase s3) {
         this.s3 = s3;
     }
 

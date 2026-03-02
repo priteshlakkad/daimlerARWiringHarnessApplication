@@ -15,6 +15,18 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * Harness File Management API Controller
+ *
+ * This controller provides endpoints for uploading and retrieving harness files.
+ * The underlying storage backend is determined by the 'app.use-s3' property:
+ *
+ * - app.use-s3=true  → Files stored in AWS S3 bucket
+ * - app.use-s3=false → Files stored locally on the filesystem (default)
+ *
+ * This design allows the same API endpoints to work seamlessly with different
+ * storage backends without needing duplicate controllers or endpoints.
+ */
 @RestController
 @RequestMapping("/api/v1/harnesses")
 public class HarnessController {
