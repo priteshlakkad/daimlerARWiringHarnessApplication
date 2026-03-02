@@ -28,7 +28,7 @@ import java.util.*;
  * storage backends without needing duplicate controllers or endpoints.
  */
 @RestController
-@RequestMapping("/api/v1/harnesses")
+@RequestMapping("/harnesses")
 public class HarnessController {
 
     @Autowired

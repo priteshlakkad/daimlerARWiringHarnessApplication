@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/v1/files")
+@RequestMapping("/files")
 @Log4j2
 @ConditionalOnProperty(name = "app.use-s3", havingValue = "false", matchIfMissing = true)
 public class FileDownloadController {
