@@ -6,15 +6,9 @@ import io.swagger.v3.oas.annotations.servers.Server;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@OpenAPIDefinition(
-        info = @Info(
-                title = "Harness API",
-                version = "1.0",
-                description = "APIs for uploading and retrieving harness files from S3"
-        ),
-        servers = {
-                @Server(url = "http://localhost:8080", description = "Local")
-        }
-)
+@OpenAPIDefinition(info = @Info(title = "Daimler AR Wiring Harness API", version = "1.0.0", description = "Comprehensive API documentation for the AR Wiring Harness application. "
+        + "Supports file management for GLTF models, truck icons, images, and various harness-related documents (PDF, Video, JSON, Bundle).", contact = @io.swagger.v3.oas.annotations.info.Contact(name = "Support Team", email = "support@example.com"), license = @io.swagger.v3.oas.annotations.info.License(name = "Proprietary", url = "https://example.com/license")), servers = {
+                @Server(url = "/api/v1", description = "Default Server")
+        })
 public class OpenApiConfig {
 }

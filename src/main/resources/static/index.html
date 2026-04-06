@@ -299,6 +299,12 @@
             padding: 2rem 0;
             font-style: italic;
         }
+
+        .hint {
+            font-size: 0.82rem;
+            color: #888;
+            margin-top: 0.3rem;
+        }
     </style>
 </head>
 
@@ -307,6 +313,12 @@
     <header>
         <h1>Daimler AR Wiring Harness</h1>
         <p>Manage and download wiring harness assets efficiently</p>
+        <p style="margin-top:0.6rem;">
+            <a href="/all-files.html"
+                style="color:var(--primary);font-weight:600;text-decoration:none;font-size:0.97rem;">
+                📥 Browse Downloadable Files (All Truck Models) →
+            </a>
+        </p>
     </header>
 
     <div class="container">
@@ -314,6 +326,11 @@
         <div class="card">
             <h2>Upload Harness Files</h2>
             <form id="uploadForm">
+                <div class="form-group">
+                    <label for="uploadTruckModel">Truck Model (Required)</label>
+                    <input type="text" id="uploadTruckModel" name="uploadTruckModel" placeholder="e.g. ACTROS" required>
+                </div>
+
                 <div class="form-group">
                     <label for="harnessId">Harness ID (Required)</label>
                     <input type="text" id="harnessId" name="harnessId" placeholder="e.g. HARN123" required>
@@ -369,10 +386,15 @@
 
         <!-- Retrieve/Download Section -->
         <div class="card">
-            <h2>Retrieve & Download</h2>
+            <h2>Retrieve &amp; Download</h2>
             <form id="retrieveForm">
                 <div class="form-group">
-                    <label for="searchHarnessId">Harness ID</label>
+                    <label for="searchTruckModel">Truck Model (Optional)</label>
+                    <input type="text" id="searchTruckModel" placeholder="e.g. ACTROS">
+                    <p class="hint">Leave blank to search across all truck models by Harness ID.</p>
+                </div>
+                <div class="form-group">
+                    <label for="searchHarnessId">Harness ID (Required)</label>
                     <input type="text" id="searchHarnessId" placeholder="e.g. HARN123" required>
                 </div>
                 <button type="submit" id="retrieveBtn">
@@ -412,32 +434,56 @@
         }
 
         // Handle Upload
+        // URL pattern: POST /api/v1/truckModel/{truckModel}/harnesses/{harnessId}
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const harnessIdInput = document.getElementById('harnessId').value.trim();
-            if (!harnessIdInput) {
+            const truckModel = document.getElementById('uploadTruckModel').value.trim();
+            const harnessId = document.getElementById('harnessId').value.trim();
+
+            if (!truckModel) {
+                showStatus(uploadStatus, 'Truck Model is required', true);
+                return;
+            }
+            if (!harnessId) {
                 showStatus(uploadStatus, 'Harness ID is required', true);
                 return;
             }
 
-            // Prepare FormData
-            const formData = new FormData(uploadForm);
-            // remove harnessId from formdata as it goes in URL path
-            formData.delete('harnessId');
+            // Build FormData manually — only include file inputs that have a file selected.
+            // Using new FormData(form) would send empty binary blobs for unselected inputs.
+            const formData = new FormData();
+
+            // Single-file fields
+            const singleFileFields = ['info', 'troubleshooting', 'wiring', 'powerFlow', 'repair', 'endDevices', 'iosBundle'];
+            for (const fieldName of singleFileFields) {
+                const input = document.getElementById(fieldName);
+                if (input && input.files && input.files.length > 0) {
+                    formData.append(fieldName, input.files[0]);
+                }
+            }
+
+            // Multi-file field: knowledge
+            const knowledgeInput = document.getElementById('knowledge');
+            if (knowledgeInput && knowledgeInput.files && knowledgeInput.files.length > 0) {
+                for (const file of knowledgeInput.files) {
+                    formData.append('knowledge', file);
+                }
+            }
 
             try {
                 uploadBtn.disabled = true;
                 uploadSpinner.style.display = 'block';
                 uploadStatus.style.display = 'none';
 
-                const response = await fetch(`${API_BASE}/harnesses/${encodeURIComponent(harnessIdInput)}`, {
+                const url = `${API_BASE}/truckModel/${encodeURIComponent(truckModel)}/harnesses/${encodeURIComponent(harnessId)}`;
+                const response = await fetch(url, {
                     method: 'POST',
                     body: formData
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    showStatus(uploadStatus, `Successfully uploaded ${result.uploadedKeys?.length || 0} files!`);
+                    showStatus(uploadStatus, `Successfully uploaded ${result.uploadedKeys?.length || 0} files for truck model "${result.truckModel}", harness "${result.harnessId}"!`);
                     uploadForm.reset();
                 } else {
                     showStatus(uploadStatus, `Upload failed: ${response.statusText}`, true);
@@ -451,10 +497,13 @@
         });
 
         // Handle Retrieve
+        // - With truck model: GET /api/v1/truckModel/{truckModel}/harnesses/{harnessId}
+        // - Without truck model: GET /api/v1/truckModel/harnesses/{harnessId}  (search across all)
         retrieveForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const harnessIdInput = document.getElementById('searchHarnessId').value.trim();
-            if (!harnessIdInput) return;
+            const truckModel = document.getElementById('searchTruckModel').value.trim();
+            const harnessId = document.getElementById('searchHarnessId').value.trim();
+            if (!harnessId) return;
 
             try {
                 retrieveBtn.disabled = true;
@@ -462,10 +511,21 @@
                 retrieveStatus.style.display = 'none';
                 fileList.innerHTML = '';
 
-                const response = await fetch(`${API_BASE}/harnesses/${encodeURIComponent(harnessIdInput)}`);
+                let url;
+                if (truckModel) {
+                    url = `${API_BASE}/truckModel/${encodeURIComponent(truckModel)}/harnesses/${encodeURIComponent(harnessId)}`;
+                } else {
+                    url = `${API_BASE}/truckModel/harnesses/${encodeURIComponent(harnessId)}`;
+                }
+
+                const response = await fetch(url);
 
                 if (response.ok) {
                     const data = await response.json();
+                    const scopeMsg = truckModel
+                        ? `Truck model: ${data.truckModel} | Harness: ${data.harnessId}`
+                        : `Search across all truck models | Harness: ${data.harnessId}`;
+                    showStatus(retrieveStatus, scopeMsg);
                     renderFiles(data.files || []);
                 } else {
                     showStatus(retrieveStatus, `Failed to fetch: ${response.statusText}`, true);
@@ -490,9 +550,8 @@
             fileList.innerHTML = files.map(file => {
                 // Extract original file name roughly from the key/url
                 const fileName = file.key ? file.key.split('/').pop() : 'download-file';
-                const fileKeyEnc = encodeURIComponent(file.key || file.url);
-                // We use the FileDownloadController Endpoint
-                const downloadUrl = `${API_BASE}/files/download?key=${fileKeyEnc}`;
+                // Use S3 direct URL if available, otherwise fallback to backend download API
+                const downloadUrl = file.url || `${API_BASE}/files/download?key=${encodeURIComponent(file.key)}`;
 
                 return `
                     <div class="file-item">

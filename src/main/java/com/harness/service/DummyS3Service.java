@@ -18,8 +18,32 @@ public class DummyS3Service extends S3ServiceBase {
     }
 
     @Override
-    public List<String> listKeys(String harnessId) {
-        log.debug("S3 is disabled. listKeys called for harnessId={}", harnessId);
+    public List<String> listKeys(String truckModel, String harnessId) {
+        log.debug("S3 is disabled. listKeys called for truckModel={}, harnessId={}", truckModel, harnessId);
+        return List.of();
+    }
+
+    @Override
+    public List<String> listAllDownloadableKeys(String truckModel) {
+        log.debug("S3 is disabled. listAllDownloadableKeys called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public List<String> listAllDownloadableKeys() {
+        log.debug("S3 is disabled. listAllDownloadableKeys (all trucks) called.");
+        return List.of();
+    }
+
+    @Override
+    public List<String> findKeysByHarnessId(String harnessId) {
+        log.debug("S3 is disabled. findKeysByHarnessId called for harnessId={}", harnessId);
+        return List.of();
+    }
+
+    @Override
+    public List<String> listAllFiles() {
+        log.debug("S3 is disabled. listAllFiles called.");
         return List.of();
     }
 
@@ -28,5 +52,42 @@ public class DummyS3Service extends S3ServiceBase {
         log.warn("S3 is disabled. Presign requested for key={}, ttlSeconds={}", key, ttlSeconds);
         return "S3_DISABLED";
     }
-}
 
+    @Override
+    public String getPublicUrl(String key) {
+        return "S3_DISABLED";
+    }
+
+    @Override
+    public void uploadImage(MultipartFile file) {
+        log.warn("S3 is disabled. uploadImage skipped.");
+    }
+
+    @Override
+    public byte[] downloadImage() throws Exception {
+        throw new Exception("S3 is disabled. No image available.");
+    }
+
+    @Override
+    public String getImageKey() {
+        return null;
+    }
+
+    @Override
+    public void uploadGltf(String truckModel, MultipartFile gltfFile) {
+        log.warn("S3 is disabled. uploadGltf skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void uploadTruckIcon(String truckModel, MultipartFile iconFile) {
+        log.warn("S3 is disabled. uploadTruckIcon skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public java.util.Map<String, String> getGltfKeys(String truckModel) {
+        java.util.Map<String, String> result = new java.util.HashMap<>();
+        result.put("gltfKey", null);
+        result.put("iconKey", null);
+        return result;
+    }
+}

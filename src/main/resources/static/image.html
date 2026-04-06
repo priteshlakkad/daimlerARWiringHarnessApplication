@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload – Daimler AR</title>
+    <style>
+        :root {
+            --primary: #00adee;
+            --primary-hover: #0099cc;
+            --secondary: #1a1a1a;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            color: var(--secondary);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 1.05rem;
+            margin-top: 0.4rem;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-top: 0.6rem;
+            font-size: 0.9rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1000px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            flex: 1;
+            min-width: 320px;
+            max-width: 480px;
+            transition: var(--transition);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            color: var(--secondary);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            color: #444;
+            font-size: 0.95rem;
+        }
+
+        /* Drag-and-drop upload zone */
+        .drop-zone {
+            border: 2px dashed #cdd5dc;
+            border-radius: 10px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: #fafbfc;
+            position: relative;
+        }
+
+        .drop-zone.drag-over {
+            border-color: var(--primary);
+            background: rgba(0, 173, 238, 0.04);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone-text {
+            font-size: 0.95rem;
+            color: #666;
+        }
+
+        .file-chosen {
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: 500;
+            min-height: 1.2em;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.9rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 0.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .status-msg {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+            text-align: center;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        /* Preview card */
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 260px;
+        }
+
+        .preview-area img {
+            max-width: 100%;
+            max-height: 340px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            object-fit: contain;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .empty-preview {
+            text-align: center;
+            color: #aaa;
+            font-style: italic;
+            padding: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .empty-preview-icon {
+            font-size: 3rem;
+            opacity: 0.35;
+        }
+
+        .preview-meta {
+            margin-top: 1rem;
+            font-size: 0.82rem;
+            color: #888;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        .download-btn-wrap {
+            margin-top: 1.2rem;
+            width: 100%;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            width: 100%;
+            padding: 0.7rem;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .download-btn:hover {
+            background-color: #333;
+            transform: translateY(-1px);
+        }
+
+        .type-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .type-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .type-option input {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🖼️ Image Processing Upload</h1>
+        <p>Upload a single image for AR image processing (replaces any existing image)</p>
+        <a href="/" class="nav-link">← Back to Harness Manager</a>
+    </header>
+
+    <div class="container">
+
+        <!-- Upload Card -->
+        <div class="card">
+            <h2>Upload Image</h2>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label>Select Image File</label>
+                    <div class="drop-zone" id="dropZone">
+                        <input type="file" id="imageInput" name="image" accept="image/*">
+                        <div class="drop-zone-icon">📂</div>
+                        <div class="drop-zone-text">Click to browse or drag &amp; drop an image here</div>
+                        <div class="drop-zone-text" style="font-size:0.8rem;margin-top:0.3rem;color:#aaa">
+                            JPG, PNG, GIF, WebP, BMP, SVG…
+                        </div>
+                    </div>
+                    <div class="file-chosen" id="fileChosen"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Image Type</label>
+                    <div class="type-group">
+                        <label class="type-option">
+                            <input type="radio" name="type" value="onroad" checked>
+                            <span>🛣️ Onroad</span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="type" value="offroad">
+                            <span>🌲 Offroad</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" id="uploadBtn">
+                    <span>Upload &amp; Replace</span>
+                    <div class="spinner" id="uploadSpinner"></div>
+                </button>
+            </form>
+            <div id="uploadStatus" class="status-msg"></div>
+        </div>
+
+        <!-- Preview Card -->
+        <div class="card">
+            <h2>Current Image</h2>
+            <div class="preview-area" id="previewArea">
+                <!-- filled by JS -->
+                <div class="empty-preview" id="emptyPreview">
+                    <span class="empty-preview-icon">🖼️</span>
+                    <span>No image uploaded yet</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api/v1';
+
+        const imageInput = document.getElementById('imageInput');
+        const fileChosen = document.getElementById('fileChosen');
+        const dropZone = document.getElementById('dropZone');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadSpinner = document.getElementById('uploadSpinner');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const previewArea = document.getElementById('previewArea');
+        const emptyPreview = document.getElementById('emptyPreview');
+
+        // ── File selection display ────────────────────────────────────────────
+        imageInput.addEventListener('change', () => {
+            const f = imageInput.files[0];
+            fileChosen.textContent = f ? `Selected: ${f.name} (${formatSize(f.size)})` : '';
+        });
+
+        // Drag-and-drop highlight
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                imageInput.files = e.dataTransfer.files;
+                const f = imageInput.files[0];
+                fileChosen.textContent = `Selected: ${f.name} (${formatSize(f.size)})`;
+            }
+        });
+
+        // ── Upload ────────────────────────────────────────────────────────────
+        uploadForm.addEventListener('submit', async e => {
+            e.preventDefault();
+            const file = imageInput.files[0];
+            if (!file) {
+                showStatus(uploadStatus, 'Please select an image file first.', true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const type = document.querySelector('input[name="type"]:checked')?.value;
+            if (type) {
+                formData.append('type', type);
+            }
+
+            try {
+                uploadBtn.disabled = true;
+                uploadSpinner.style.display = 'block';
+                uploadStatus.style.display = 'none';
+
+                const res = await fetch(`${API_BASE}/images/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    showStatus(uploadStatus, `✔ Uploaded successfully!`);
+                    uploadForm.reset();
+                    fileChosen.textContent = '';
+                    // Refresh preview
+                    await loadPreview();
+                } else {
+                    showStatus(uploadStatus, `Upload failed: ${data.message || res.statusText}`, true);
+                }
+            } catch (err) {
+                showStatus(uploadStatus, `Error: ${err.message}`, true);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadSpinner.style.display = 'none';
+            }
+        });
+
+        // ── Preview loader ────────────────────────────────────────────────────
+        async function loadPreview() {
+            try {
+                const res = await fetch(`${API_BASE}/images/info`);
+                if (!res.ok) { renderEmpty(); return; }
+                const data = await res.json();
+                if (data.exists) {
+                    renderImage(data.key, data.url, data.type);
+                } else {
+                    renderEmpty();
+                }
+            } catch {
+                renderEmpty();
+            }
+        }
+
+        function renderImage(key, url, type) {
+            // Use url from S3 if available, otherwise fallback to download endpoint with cache-busting
+            const src = url || `${API_BASE}/images/download?t=${Date.now()}`;
+            const fileName = key ? key.split('/').pop() : 'image';
+            const typeLabel = type ? (type === 'onroad' ? '🛣️ Onroad' : '🌲 Offroad') : '';
+
+            previewArea.innerHTML = `
+                <img src="${src}" alt="Stored image" id="previewImg" />
+                <div class="preview-meta">
+                    <div>📁 ${key}</div>
+                    ${typeLabel ? `<div style="margin-top:0.4rem; color:var(--primary); font-weight:600; font-size:0.9rem">${typeLabel}</div>` : ''}
+                </div>
+                <div class="download-btn-wrap">
+                    <a href="${src}" class="download-btn" download="${fileName}" target="_blank">
+                        ⬇ Download Image
+                    </a>
+                </div>
+            `;
+        }
+
+        function renderEmpty() {
+            previewArea.innerHTML = `
+                <div class="empty-preview">
+                    <span class="empty-preview-icon">🖼️</span>
+                    <span>No image uploaded yet</span>
+                </div>
+            `;
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+        function showStatus(el, msg, isError = false) {
+            el.textContent = msg;
+            el.className = `status-msg ${isError ? 'status-error' : 'status-success'}`;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        // Load preview on page init
+        loadPreview();
+    </script>
+
+</body>
+
+</html>

@@ -4,6 +4,7 @@ import com.harness.service.LocalStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,25 +18,20 @@ import java.io.IOException;
 @RequestMapping("/files")
 @Log4j2
 @ConditionalOnProperty(name = "app.use-s3", havingValue = "false", matchIfMissing = true)
+@Tag(name = "Local File Storage", description = "Endpoints for downloading files from local storage (used when S3 is disabled)")
 public class FileDownloadController {
 
     @Autowired(required = false)
     private LocalStorageService localStorageService;
 
     @GetMapping("/download")
-    @Operation(
-            summary = "Download file from local storage",
-            description = "Downloads a file that was uploaded to local storage",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "File downloaded successfully"),
-                    @ApiResponse(responseCode = "404", description = "File not found"),
-                    @ApiResponse(responseCode = "500", description = "Download failed")
-            }
-    )
+    @Operation(summary = "Download file from local storage", description = "Downloads a file that was uploaded to local storage", responses = {
+            @ApiResponse(responseCode = "200", description = "File downloaded successfully"),
+            @ApiResponse(responseCode = "404", description = "File not found"),
+            @ApiResponse(responseCode = "500", description = "Download failed")
+    })
     public ResponseEntity<?> downloadFile(
-            @Parameter(description = "File key/path", example = "cdn/v1/harnesses/HARN123/info/HARN123_info.pdf")
-            @RequestParam String key
-    ) {
+            @Parameter(description = "File key/path", example = "cdn/v1/harnesses/HARN123/info/HARN123_info.pdf") @RequestParam String key) {
         try {
             if (localStorageService == null) {
                 return ResponseEntity.badRequest().body("Local storage service not available");
@@ -74,4 +70,3 @@ public class FileDownloadController {
         };
     }
 }
-
