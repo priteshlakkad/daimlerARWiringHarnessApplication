@@ -30,7 +30,7 @@ import java.util.Map;
  * (null/empty if a file has not been uploaded yet).
  */
 @RestController
-@RequestMapping("/gltf/{truckModel}")
+@RequestMapping("/api/v1/gltf")
 @Log4j2
 @Tag(name = "GLTF & Icons", description = "Endpoints for managing GLTF 3D models and truck icons")
 public class GltfController {
@@ -43,7 +43,7 @@ public class GltfController {
 
     // ── POST /gltf/{truckModel}/upload ────────────────────────────────────────
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{truckModel}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload GLTF model and/or truck icon", description = "Uploads a GLTF model file and/or a truck icon for the given truck model. "
             + "At least one file must be supplied. Existing files at the target paths are replaced. "
             + "GLTF is stored at cdn/v1/{truckModel}/GLTF/{truckModel}_model.gltf; "
@@ -53,7 +53,7 @@ public class GltfController {
                     @ApiResponse(responseCode = "500", description = "Upload failed")
             })
     public ResponseEntity<Map<String, Object>> uploadGltf(
-            @Parameter(description = "Truck model identifier") @PathVariable String truckModel,
+            @Parameter(name = "truckModel", description = "Truck model identifier") @PathVariable("truckModel") String truckModel,
             @Parameter(description = "GLTF model file (.gltf or .glb) — optional") @RequestParam(value = "gltf", required = false) MultipartFile gltf,
             @Parameter(description = "Truck icon image file — optional") @RequestParam(value = "icon", required = false) MultipartFile icon) {
 
@@ -97,15 +97,36 @@ public class GltfController {
         }
     }
 
+    // ── DELETE /gltf/{truckModel} ─────────────────────────────────────────────
+
+    @DeleteMapping("/{truckModel}")
+    @Operation(summary = "Delete GLTF and icon files for a truck model", description = "Deletes all files under cdn/v1/{truckModel}/GLTF/ — both the .gltf model and the icon.", responses = {
+            @ApiResponse(responseCode = "200", description = "GLTF folder deleted"),
+            @ApiResponse(responseCode = "500", description = "Deletion failed")
+    })
+    public ResponseEntity<Map<String, Object>> deleteGltf(
+            @Parameter(name = "truckModel", description = "Truck model identifier") @PathVariable("truckModel") String truckModel) {
+        try {
+            storage.deleteGltfFolder(truckModel);
+            log.info("GLTF folder deleted for truckModel={}", truckModel);
+            return ResponseEntity.ok(Map.of("success", true,
+                    "message", "GLTF folder deleted for: " + truckModel));
+        } catch (Exception e) {
+            log.error("Failed to delete GLTF folder for truckModel={}", truckModel, e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("success", false, "message", "Deletion failed: " + e.getMessage()));
+        }
+    }
+
     // ── GET /gltf/{truckModel}/info ───────────────────────────────────────────
 
-    @GetMapping("/info")
+    @GetMapping("/{truckModel}/info")
     @Operation(summary = "Get GLTF and truck icon info", description = "Returns the S3 storage keys and public URLs for the GLTF model and truck icon "
             + "associated with the given truck model. Fields are null/empty if the file hasn't been uploaded.", responses = {
                     @ApiResponse(responseCode = "200", description = "Info returned")
             })
     public ResponseEntity<Map<String, Object>> gltfInfo(
-            @Parameter(description = "Truck model identifier") @PathVariable String truckModel) {
+            @Parameter(name = "truckModel", description = "Truck model identifier") @PathVariable("truckModel") String truckModel) {
 
         Map<String, String> keys = storage.getGltfKeys(truckModel);
         String gltfKey = keys.get("gltfKey");

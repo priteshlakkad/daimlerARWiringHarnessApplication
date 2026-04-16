@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/files")
+@RequestMapping("/api/v1/files")
 @Log4j2
 @ConditionalOnProperty(name = "app.use-s3", havingValue = "false", matchIfMissing = true)
 @Tag(name = "Local File Storage", description = "Endpoints for downloading files from local storage (used when S3 is disabled)")

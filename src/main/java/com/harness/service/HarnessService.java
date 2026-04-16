@@ -1,10 +1,14 @@
 package com.harness.service;
 
+import com.harness.dtos.HarnessValidationResult;
+import com.harness.dtos.TruckFilesResponse;
 import com.harness.dtos.UploadedFileResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -148,5 +152,110 @@ public class HarnessService {
         return s3.listAllFiles().stream()
                 .map(key -> new UploadedFileResponse(key, s3.getPublicUrl(key)))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Return a nested folder/file tree for the given truck model.
+     * Each leaf node is the presigned/public URL of the file.
+     * Returns null if no files exist (truck not found).
+     */
+    public TruckFilesResponse getTruckFiles(String truckModel, int ttlSeconds) {
+        List<String> keys = s3.listTruckFiles(truckModel);
+        if (keys.isEmpty()) {
+            return null;
+        }
+
+        String prefix = "cdn/v1/" + truckModel + "/";
+        Map<String, Object> tree = new LinkedHashMap<>();
+
+        for (String key : keys) {
+            // Ignore directory markers (0-byte objects in S3 ending with '/')
+            if (key.endsWith("/")) {
+                continue;
+            }
+
+            String relative = key.startsWith(prefix) ? key.substring(prefix.length()) : key;
+            if (relative.isEmpty())
+                continue;
+
+            String url = s3.getPublicUrl(key);
+            String[] parts = relative.split("/");
+            insertIntoTree(tree, parts, 0, url);
+        }
+
+        return new TruckFilesResponse(truckModel, tree);
+    }
+
+    // ── New management methods ────────────────────────────────────────────────
+
+    public List<String> listTruckModels() {
+        return s3.listTruckModels();
+    }
+
+    public List<String> listHarnessIds(String truckModel) {
+        return s3.listHarnessIds(truckModel);
+    }
+
+    public void deleteTruck(String truckModel) throws Exception {
+        s3.deleteTruck(truckModel);
+    }
+
+    public void deleteHarness(String truckModel, String harnessId) throws Exception {
+        s3.deleteHarness(truckModel, harnessId);
+    }
+
+    public void deleteHarnessFile(String truckModel, String harnessId,
+            String category, String fileName) throws Exception {
+        s3.deleteHarnessFile(truckModel, harnessId, category, fileName);
+    }
+
+    public UploadedFileResponse replaceHarnessFile(String truckModel, String harnessId,
+            String category, MultipartFile file) throws Exception {
+        String key = buildHarnessFileKey(truckModel, harnessId, category,
+                Optional.ofNullable(file.getOriginalFilename()).orElse("file"));
+        s3.upload(key, file);
+        return new UploadedFileResponse(key, s3.getPublicUrl(key));
+    }
+
+    private String buildHarnessFileKey(String truckModel, String harnessId,
+            String category, String originalFilename) {
+        return switch (category.toLowerCase()) {
+            case "info" -> String.format("cdn/v1/%s/harnesses/%s/info/%s_info.pdf",
+                    truckModel, harnessId, harnessId);
+            case "troubleshooting" -> String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.pdf",
+                    truckModel, harnessId, harnessId);
+            case "wiring" -> String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.pdf",
+                    truckModel, harnessId, harnessId);
+            case "powerflow" -> String.format("cdn/v1/%s/harnesses/%s/powerflow/%s_powerflow.mp4",
+                    truckModel, harnessId, harnessId);
+            case "repair" -> String.format("cdn/v1/%s/harnesses/%s/repair/%s_repair.mp4",
+                    truckModel, harnessId, harnessId);
+            default -> String.format("cdn/v1/%s/harnesses/%s/%s/%s",
+                    truckModel, harnessId, category, originalFilename);
+        };
+    }
+
+    public HarnessValidationResult validateHarness(String truckModel, String harnessId) {
+        List<String> existing = s3.listKeys(truckModel, harnessId);
+        List<String> required = List.of(
+                String.format("cdn/v1/%s/harnesses/%s/info/%s_info.pdf", truckModel, harnessId, harnessId),
+                String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.pdf",
+                        truckModel, harnessId, harnessId),
+                String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.pdf", truckModel, harnessId, harnessId));
+        List<String> missing = required.stream()
+                .filter(req -> !existing.contains(req))
+                .collect(Collectors.toList());
+        return new HarnessValidationResult(truckModel, harnessId, missing.isEmpty(), missing);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void insertIntoTree(Map<String, Object> node, String[] parts, int index, String url) {
+        String segment = parts[index];
+        if (index == parts.length - 1) {
+            node.put(segment, url);
+        } else {
+            node.computeIfAbsent(segment, k -> new LinkedHashMap<String, Object>());
+            insertIntoTree((Map<String, Object>) node.get(segment), parts, index + 1, url);
+        }
     }
 }

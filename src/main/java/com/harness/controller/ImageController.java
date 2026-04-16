@@ -29,7 +29,7 @@ import java.util.Optional;
  * GET /images/info — Check whether an image exists (JSON: { exists, key })
  */
 @RestController
-@RequestMapping("/images")
+@RequestMapping("/api/v1/images")
 @Log4j2
 @Tag(name = "Image Management", description = "Endpoints for managing global application images")
 public class ImageController {

@@ -90,4 +90,106 @@ public class DummyS3Service extends S3ServiceBase {
         result.put("iconKey", null);
         return result;
     }
+
+    @Override
+    public void uploadEndDeviceFile(String truckModel, MultipartFile file) {
+        log.warn("S3 is disabled. uploadEndDeviceFile skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public List<String> getEndDeviceFiles(String truckModel) {
+        log.debug("S3 is disabled. getEndDeviceFiles called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public void deleteEndDeviceFile(String truckModel, String fileName) {
+        log.warn("S3 is disabled. deleteEndDeviceFile skipped for truckModel={}, fileName={}", truckModel, fileName);
+    }
+
+    @Override
+    public void uploadFaultCodeFile(String truckModel, MultipartFile file) {
+        log.warn("S3 is disabled. uploadFaultCodeFile skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public List<String> getFaultCodeFiles(String truckModel) {
+        log.debug("S3 is disabled. getFaultCodeFiles called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public void deleteFaultCodeFile(String truckModel, String fileName) {
+        log.warn("S3 is disabled. deleteFaultCodeFile skipped for truckModel={}, fileName={}", truckModel, fileName);
+    }
+
+    @Override
+    public List<String> listTruckFiles(String truckModel) {
+        log.debug("S3 is disabled. listTruckFiles called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public List<String> listTruckModels() {
+        log.debug("S3 is disabled. listTruckModels called.");
+        return List.of();
+    }
+
+    @Override
+    public List<String> listHarnessIds(String truckModel) {
+        log.debug("S3 is disabled. listHarnessIds called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public void deleteTruck(String truckModel) {
+        log.warn("S3 is disabled. deleteTruck skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void deleteHarness(String truckModel, String harnessId) {
+        log.warn("S3 is disabled. deleteHarness skipped for truckModel={}, harnessId={}", truckModel, harnessId);
+    }
+
+    @Override
+    public void deleteHarnessFile(String truckModel, String harnessId, String category, String fileName) {
+        log.warn("S3 is disabled. deleteHarnessFile skipped for truckModel={}, harnessId={}, category={}, fileName={}",
+                truckModel, harnessId, category, fileName);
+    }
+
+    @Override
+    public void deleteGltfFolder(String truckModel) {
+        log.warn("S3 is disabled. deleteGltfFolder skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void deleteAllFaultCodeFiles(String truckModel) {
+        log.warn("S3 is disabled. deleteAllFaultCodeFiles skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void deleteAllEndDeviceFiles(String truckModel) {
+        log.warn("S3 is disabled. deleteAllEndDeviceFiles skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void uploadWorkshopManualFile(String truckModel, MultipartFile file) {
+        log.warn("S3 is disabled. uploadWorkshopManualFile skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public List<String> getWorkshopManualFiles(String truckModel) {
+        log.debug("S3 is disabled. getWorkshopManualFiles called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public void deleteWorkshopManualFile(String truckModel, String fileName) {
+        log.warn("S3 is disabled. deleteWorkshopManualFile skipped for truckModel={}, fileName={}", truckModel, fileName);
+    }
+
+    @Override
+    public void deleteAllWorkshopManualFiles(String truckModel) {
+        log.warn("S3 is disabled. deleteAllWorkshopManualFiles skipped for truckModel={}", truckModel);
+    }
 }

@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -133,7 +134,8 @@ public class LocalStorageService extends S3ServiceBase {
                 return paths
                         .filter(Files::isRegularFile)
                         .map(path -> Paths.get(storagePath).relativize(path).toString().replace("\\", "/"))
-                        .filter(key -> key.contains("/troubleshooting/") || key.contains("/powerflow/"))
+                        .filter(key -> key.contains("/troubleshooting/") || key.contains("/powerflow/")
+                                || key.contains("/workshopmanual/"))
                         .collect(Collectors.toList());
             }
         } catch (IOException e) {
@@ -391,5 +393,280 @@ public class LocalStorageService extends S3ServiceBase {
             log.error("Failed to list GLTF keys for truckModel={}", truckModel, e);
         }
         return result;
+    }
+
+    // ── EndDevice (per-device slot at cdn/v1/{truckModel}/enddevices/) ──
+
+    private String endDeviceDirLocal(String truckModel) {
+        return "cdn/v1/" + truckModel + "/enddevices";
+    }
+
+    @Override
+    public void uploadEndDeviceFile(String truckModel, MultipartFile file) throws Exception {
+        Path dir = Paths.get(storagePath, endDeviceDirLocal(truckModel));
+        Files.createDirectories(dir);
+
+        String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+        Path dest = dir.resolve(originalName);
+
+        // Replace if already exists
+        Files.deleteIfExists(dest);
+
+        Files.write(dest, file.getBytes());
+        log.info("EndDevice file uploaded to local storage: {}", dest);
+    }
+
+    @Override
+    public List<String> getEndDeviceFiles(String truckModel) {
+        Path dir = Paths.get(storagePath, endDeviceDirLocal(truckModel));
+        if (!Files.exists(dir)) {
+            return new ArrayList<>();
+        }
+
+        try (Stream<Path> files = Files.list(dir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list EndDevice files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public void deleteEndDeviceFile(String truckModel, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, endDeviceDirLocal(truckModel), fileName);
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+            log.info("EndDevice file deleted from local storage: {}", filePath);
+        } else {
+            log.warn("EndDevice file NOT found for deletion: {}", filePath);
+            throw new IOException("File not found: " + fileName);
+        }
+    }
+
+    // ── FaultCodes (per-truck multi-file slot at cdn/v1/{truckModel}/faultcodes/)
+    // ──
+
+    private String getFaultCodeDirLocal(String truckModel) {
+        return "cdn/v1/" + truckModel + "/faultcodes";
+    }
+
+    @Override
+    public void uploadFaultCodeFile(String truckModel, MultipartFile file) throws Exception {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel));
+        Files.createDirectories(dir);
+
+        String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+        Path dest = dir.resolve(originalName);
+
+        // Delete if already exists to ensure replacement if filenames match
+        Files.deleteIfExists(dest);
+
+        Files.write(dest, file.getBytes());
+        log.info("FaultCode file uploaded to local storage: {}", dest);
+    }
+
+    @Override
+    public List<String> getFaultCodeFiles(String truckModel) {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel));
+        if (!Files.exists(dir)) {
+            return new ArrayList<>();
+        }
+
+        try (Stream<Path> files = Files.list(dir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list FaultCode files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<String> listTruckFiles(String truckModel) {
+        Path truckDir = Paths.get(storagePath, "cdn/v1/" + truckModel);
+        if (!Files.exists(truckDir)) {
+            return new ArrayList<>();
+        }
+        try (Stream<Path> paths = Files.walk(truckDir)) {
+            return paths
+                    .filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list truck files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public void deleteFaultCodeFile(String truckModel, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, getFaultCodeDirLocal(truckModel), fileName);
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+            log.info("FaultCode file deleted from local storage: {}", filePath);
+        } else {
+            log.warn("FaultCode file NOT found for deletion: {}", filePath);
+            throw new IOException("File not found: " + fileName);
+        }
+    }
+
+    // ── Recursive delete helper ──────────────────────────────────────────────
+
+    private void deleteDirectoryRecursively(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(dir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException e) {
+                    log.warn("Could not delete path: {}", p, e);
+                }
+            });
+        }
+    }
+
+    // ── Truck model and harness listing ──────────────────────────────────────
+
+    @Override
+    public List<String> listTruckModels() {
+        Path cdnRoot = Paths.get(storagePath, "cdn/v1");
+        if (!Files.exists(cdnRoot)) {
+            return new ArrayList<>();
+        }
+        try (Stream<Path> dirs = Files.list(cdnRoot)) {
+            return dirs.filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list truck models", e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<String> listHarnessIds(String truckModel) {
+        Path harnessesDir = Paths.get(storagePath, "cdn/v1", truckModel, "harnesses");
+        if (!Files.exists(harnessesDir)) {
+            return new ArrayList<>();
+        }
+        try (Stream<Path> dirs = Files.list(harnessesDir)) {
+            return dirs.filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list harness IDs for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    // ── Bulk deletions ────────────────────────────────────────────────────────
+
+    @Override
+    public void deleteTruck(String truckModel) throws Exception {
+        Path truckDir = Paths.get(storagePath, "cdn/v1", truckModel);
+        deleteDirectoryRecursively(truckDir);
+        log.info("Truck deleted from local storage: {}", truckDir);
+    }
+
+    @Override
+    public void deleteHarness(String truckModel, String harnessId) throws Exception {
+        Path harnessDir = Paths.get(storagePath, "cdn/v1", truckModel, "harnesses", harnessId);
+        deleteDirectoryRecursively(harnessDir);
+        log.info("Harness deleted from local storage: {}", harnessDir);
+    }
+
+    @Override
+    public void deleteHarnessFile(String truckModel, String harnessId,
+            String category, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, "cdn/v1", truckModel,
+                "harnesses", harnessId, category, fileName);
+        if (!Files.exists(filePath)) {
+            throw new IOException("File not found: " + fileName);
+        }
+        Files.delete(filePath);
+        log.info("Harness file deleted from local storage: {}", filePath);
+    }
+
+    @Override
+    public void deleteGltfFolder(String truckModel) throws Exception {
+        Path gltfDir = Paths.get(storagePath, gltfDirLocal(truckModel));
+        deleteDirectoryRecursively(gltfDir);
+        log.info("GLTF folder deleted from local storage: {}", gltfDir);
+    }
+
+    @Override
+    public void deleteAllFaultCodeFiles(String truckModel) throws Exception {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel));
+        deleteDirectoryRecursively(dir);
+        log.info("All faultcodes deleted for truckModel={}", truckModel);
+    }
+
+    @Override
+    public void deleteAllEndDeviceFiles(String truckModel) throws Exception {
+        Path dir = Paths.get(storagePath, endDeviceDirLocal(truckModel));
+        deleteDirectoryRecursively(dir);
+        log.info("All end devices deleted for truckModel={}", truckModel);
+    }
+
+    // ── WorkshopManual (per-truck multi-file slot at cdn/v1/{truckModel}/workshopmanual/) ──
+
+    private String getWorkshopManualDirLocal(String truckModel) {
+        return "cdn/v1/" + truckModel + "/workshopmanual";
+    }
+
+    @Override
+    public void uploadWorkshopManualFile(String truckModel, MultipartFile file) throws Exception {
+        Path dir = Paths.get(storagePath, getWorkshopManualDirLocal(truckModel));
+        Files.createDirectories(dir);
+
+        String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+        Path dest = dir.resolve(originalName);
+
+        Files.deleteIfExists(dest);
+        Files.write(dest, file.getBytes());
+        log.info("WorkshopManual file uploaded to local storage: {}", dest);
+    }
+
+    @Override
+    public List<String> getWorkshopManualFiles(String truckModel) {
+        Path dir = Paths.get(storagePath, getWorkshopManualDirLocal(truckModel));
+        if (!Files.exists(dir)) {
+            return new ArrayList<>();
+        }
+
+        try (Stream<Path> files = Files.list(dir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list WorkshopManual files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public void deleteWorkshopManualFile(String truckModel, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, getWorkshopManualDirLocal(truckModel), fileName);
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+            log.info("WorkshopManual file deleted from local storage: {}", filePath);
+        } else {
+            log.warn("WorkshopManual file NOT found for deletion: {}", filePath);
+            throw new IOException("File not found: " + fileName);
+        }
+    }
+
+    @Override
+    public void deleteAllWorkshopManualFiles(String truckModel) throws Exception {
+        Path dir = Paths.get(storagePath, getWorkshopManualDirLocal(truckModel));
+        deleteDirectoryRecursively(dir);
+        log.info("All workshop manuals deleted for truckModel={}", truckModel);
     }
 }

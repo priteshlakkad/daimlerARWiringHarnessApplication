@@ -100,7 +100,8 @@ public class S3Service extends S3ServiceBase {
                                 .build());
                 return res.contents().stream()
                                 .map(S3Object::key)
-                                .filter(key -> key.contains("/troubleshooting/") || key.contains("/powerflow/"))
+                                .filter(key -> key.contains("/troubleshooting/") || key.contains("/powerflow/")
+                                                || key.contains("/workshopmanual/"))
                                 .collect(Collectors.toList());
         }
 
@@ -269,5 +270,251 @@ public class S3Service extends S3ServiceBase {
                         }
                 }
                 return result;
+        }
+
+        // ── EndDevice (per-device slot at cdn/v1/{truckModel}/enddevices/) ──
+
+        private String endDeviceDir(String truckModel) {
+                return "cdn/v1/" + truckModel + "/enddevices/";
+        }
+
+        @Override
+        public void uploadEndDeviceFile(String truckModel, MultipartFile file) throws IOException {
+                String dir = endDeviceDir(truckModel);
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+                String key = dir + originalName;
+
+                PutObjectRequest req = PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(Optional.ofNullable(file.getContentType())
+                                                .orElse("application/octet-stream"))
+                                .build();
+                s3.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        }
+
+        @Override
+        public List<String> getEndDeviceFiles(String truckModel) {
+                String dir = endDeviceDir(truckModel);
+                ListObjectsV2Response res = s3.listObjectsV2(
+                                ListObjectsV2Request.builder().bucket(bucket).prefix(dir).build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
+        public void deleteEndDeviceFile(String truckModel, String fileName) throws Exception {
+                String key = endDeviceDir(truckModel) + fileName;
+
+                // Check if object exists first
+                try {
+                        s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+                } catch (NoSuchKeyException e) {
+                        throw new IOException("File not found in S3: " + fileName);
+                }
+
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        // ── FaultCodes (per-truck multi-file slot at cdn/v1/{truckModel}/faultcodes/)
+        // ──
+
+        private String getFaultCodeDir(String truckModel) {
+                return "cdn/v1/" + truckModel + "/faultcodes/";
+        }
+
+        @Override
+        public void uploadFaultCodeFile(String truckModel, MultipartFile file) throws IOException {
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+                String key = getFaultCodeDir(truckModel) + originalName;
+
+                PutObjectRequest req = PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(Optional.ofNullable(file.getContentType())
+                                                .orElse("application/octet-stream"))
+                                .build();
+                s3.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        }
+
+        @Override
+        public List<String> getFaultCodeFiles(String truckModel) {
+                String prefix = getFaultCodeDir(truckModel);
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
+        public List<String> listTruckFiles(String truckModel) {
+                String prefix = "cdn/v1/" + truckModel + "/";
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
+        public void deleteFaultCodeFile(String truckModel, String fileName) throws Exception {
+                String key = getFaultCodeDir(truckModel) + fileName;
+
+                // Check if object exists first to throw exception if not found, matching
+                // LocalStorage behavior
+                try {
+                        s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+                } catch (NoSuchKeyException e) {
+                        throw new IOException("File not found in S3: " + fileName);
+                }
+
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        // ── Bulk delete helper ───────────────────────────────────────────────────
+
+        private void deleteByPrefix(String prefix) {
+                String continuationToken = null;
+                do {
+                        ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
+                                        .bucket(bucket)
+                                        .prefix(prefix);
+                        if (continuationToken != null) {
+                                reqBuilder.continuationToken(continuationToken);
+                        }
+                        ListObjectsV2Response res = s3.listObjectsV2(reqBuilder.build());
+
+                        List<ObjectIdentifier> toDelete = res.contents().stream()
+                                        .map(obj -> ObjectIdentifier.builder().key(obj.key()).build())
+                                        .collect(Collectors.toList());
+
+                        if (!toDelete.isEmpty()) {
+                                s3.deleteObjects(DeleteObjectsRequest.builder()
+                                                .bucket(bucket)
+                                                .delete(Delete.builder().objects(toDelete).build())
+                                                .build());
+                        }
+
+                        continuationToken = res.isTruncated() ? res.nextContinuationToken() : null;
+                } while (continuationToken != null);
+        }
+
+        // ── Truck model and harness listing ──────────────────────────────────────
+
+        @Override
+        public List<String> listTruckModels() {
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix("cdn/v1/")
+                                .delimiter("/")
+                                .build());
+                return res.commonPrefixes().stream()
+                                .map(CommonPrefix::prefix)
+                                .map(p -> p.replace("cdn/v1/", "").replace("/", ""))
+                                .filter(s -> !s.isBlank())
+                                .collect(Collectors.toList());
+        }
+
+        @Override
+        public List<String> listHarnessIds(String truckModel) {
+                String prefix = "cdn/v1/" + truckModel + "/harnesses/";
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .delimiter("/")
+                                .build());
+                return res.commonPrefixes().stream()
+                                .map(CommonPrefix::prefix)
+                                .map(p -> p.replace(prefix, "").replace("/", ""))
+                                .filter(s -> !s.isBlank())
+                                .collect(Collectors.toList());
+        }
+
+        // ── Bulk deletions ────────────────────────────────────────────────────────
+
+        @Override
+        public void deleteTruck(String truckModel) throws Exception {
+                deleteByPrefix("cdn/v1/" + truckModel + "/");
+        }
+
+        @Override
+        public void deleteHarness(String truckModel, String harnessId) throws Exception {
+                deleteByPrefix("cdn/v1/" + truckModel + "/harnesses/" + harnessId + "/");
+        }
+
+        @Override
+        public void deleteHarnessFile(String truckModel, String harnessId,
+                        String category, String fileName) throws Exception {
+                String key = "cdn/v1/" + truckModel + "/harnesses/" + harnessId
+                                + "/" + category + "/" + fileName;
+                try {
+                        s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+                } catch (NoSuchKeyException e) {
+                        throw new IOException("File not found in S3: " + fileName);
+                }
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        @Override
+        public void deleteGltfFolder(String truckModel) throws Exception {
+                deleteByPrefix(gltfDir(truckModel));
+        }
+
+        @Override
+        public void deleteAllFaultCodeFiles(String truckModel) throws Exception {
+                deleteByPrefix(getFaultCodeDir(truckModel));
+        }
+
+        @Override
+        public void deleteAllEndDeviceFiles(String truckModel) throws Exception {
+                deleteByPrefix(endDeviceDir(truckModel));
+        }
+
+        // ── WorkshopManual (per-truck multi-file slot at cdn/v1/{truckModel}/workshopmanual/) ──
+
+        private String getWorkshopManualDir(String truckModel) {
+                return "cdn/v1/" + truckModel + "/workshopmanual/";
+        }
+
+        @Override
+        public void uploadWorkshopManualFile(String truckModel, MultipartFile file) throws IOException {
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+                String key = getWorkshopManualDir(truckModel) + originalName;
+
+                PutObjectRequest req = PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(Optional.ofNullable(file.getContentType())
+                                                .orElse("application/octet-stream"))
+                                .build();
+                s3.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        }
+
+        @Override
+        public List<String> getWorkshopManualFiles(String truckModel) {
+                String prefix = getWorkshopManualDir(truckModel);
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
+        public void deleteWorkshopManualFile(String truckModel, String fileName) throws Exception {
+                String key = getWorkshopManualDir(truckModel) + fileName;
+
+                try {
+                        s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+                } catch (NoSuchKeyException e) {
+                        throw new IOException("File not found in S3: " + fileName);
+                }
+
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        @Override
+        public void deleteAllWorkshopManualFiles(String truckModel) throws Exception {
+                deleteByPrefix(getWorkshopManualDir(truckModel));
         }
 }
