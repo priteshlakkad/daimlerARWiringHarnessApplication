@@ -517,4 +517,24 @@ public class S3Service extends S3ServiceBase {
         public void deleteAllWorkshopManualFiles(String truckModel) throws Exception {
                 deleteByPrefix(getWorkshopManualDir(truckModel));
         }
+
+        // ── 3D Model (per-harness slot at cdn/v1/{truckModel}/harnesses/{harnessId}/) ──
+
+        @Override
+        public com.harness.dtos.UploadedFileResponse upload3dModel(
+                        String truckModel, String harnessId, MultipartFile file) throws IOException {
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("model.bin");
+                String ext = originalName.contains(".")
+                                ? originalName.substring(originalName.lastIndexOf('.') + 1)
+                                : "bin";
+                String key = String.format("cdn/v1/%s/harnesses/%s/%s.%s", truckModel, harnessId, harnessId, ext);
+                PutObjectRequest req = PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(Optional.ofNullable(file.getContentType())
+                                                .orElse("application/octet-stream"))
+                                .build();
+                s3.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+                return new com.harness.dtos.UploadedFileResponse(key, getPublicUrl(key));
+        }
 }

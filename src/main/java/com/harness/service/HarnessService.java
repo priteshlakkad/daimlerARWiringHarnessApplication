@@ -37,52 +37,56 @@ public class HarnessService {
 
         // 1. Info PDF
         if (request.getInfo() != null && !request.getInfo().isEmpty()) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/info/%s_info.pdf", truckModel, harnessId, harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/info/%s_info.%s", truckModel, harnessId, harnessId,
+                    getExtension(request.getInfo()));
             s3.upload(key, request.getInfo());
             uploadedKeys.add(key);
         }
 
         // 2. Troubleshooting PDF
         if (request.getTroubleshooting() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.pdf", truckModel,
-                    harnessId, harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.%s", truckModel,
+                    harnessId, harnessId, getExtension(request.getTroubleshooting()));
             s3.upload(key, request.getTroubleshooting());
             uploadedKeys.add(key);
         }
 
         // 3. Wiring PDF
         if (request.getWiring() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.pdf", truckModel, harnessId, harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.%s", truckModel, harnessId, harnessId,
+                    getExtension(request.getWiring()));
             s3.upload(key, request.getWiring());
             uploadedKeys.add(key);
         }
 
         // 4. Powerflow video
         if (request.getPowerFlow() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/powerflow/%s_powerflow.mp4", truckModel, harnessId,
-                    harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/powerflow/%s_powerflow.%s", truckModel, harnessId,
+                    harnessId, getExtension(request.getPowerFlow()));
             s3.upload(key, request.getPowerFlow());
             uploadedKeys.add(key);
         }
 
         // 5. Repair video
         if (request.getRepair() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/repair/%s_repair.mp4", truckModel, harnessId, harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/repair/%s_repair.%s", truckModel, harnessId, harnessId,
+                    getExtension(request.getRepair()));
             s3.upload(key, request.getRepair());
             uploadedKeys.add(key);
         }
 
         // 6. Enddevices JSON
         if (request.getEndDevices() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/enddevices.json", truckModel, harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/enddevices.%s", truckModel, harnessId,
+                    getExtension(request.getEndDevices()));
             s3.upload(key, request.getEndDevices());
             uploadedKeys.add(key);
         }
 
         // 7. iOS Unity bundle
         if (request.getIosBundle() != null) {
-            String key = String.format("cdn/v1/%s/harnesses/%s/bundles/ios/%s.bundle", truckModel, harnessId,
-                    harnessId);
+            String key = String.format("cdn/v1/%s/harnesses/%s/bundles/ios/%s_ios.%s", truckModel, harnessId,
+                    harnessId, getExtension(request.getIosBundle()));
             s3.upload(key, request.getIosBundle());
             uploadedKeys.add(key);
         }
@@ -90,11 +94,11 @@ public class HarnessService {
         // 8. Knowledge PDFs (optional)
         if (request.getKnowledge() != null) {
             for (MultipartFile file : request.getKnowledge()) {
-                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("knowledge.pdf");
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("knowledge");
                 String purpose = originalName.contains(".") ? originalName.substring(0, originalName.lastIndexOf('.'))
                         : originalName;
-                String key = String.format("cdn/v1/%s/harnesses/%s/knowledge/%s_%s.pdf", truckModel, harnessId,
-                        harnessId, purpose);
+                String key = String.format("cdn/v1/%s/harnesses/%s/knowledge/%s_%s.%s", truckModel, harnessId,
+                        harnessId, purpose, getExtension(file));
                 s3.upload(key, file);
                 uploadedKeys.add(key);
             }
@@ -217,22 +221,35 @@ public class HarnessService {
         return new UploadedFileResponse(key, s3.getPublicUrl(key));
     }
 
+    private String getExtension(MultipartFile file) {
+        String name = Optional.ofNullable(file.getOriginalFilename()).orElse("");
+        return name.contains(".") ? name.substring(name.lastIndexOf('.') + 1) : "bin";
+    }
+
     private String buildHarnessFileKey(String truckModel, String harnessId,
             String category, String originalFilename) {
+        String ext = originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf('.') + 1)
+                : "bin";
         return switch (category.toLowerCase()) {
-            case "info" -> String.format("cdn/v1/%s/harnesses/%s/info/%s_info.pdf",
-                    truckModel, harnessId, harnessId);
-            case "troubleshooting" -> String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.pdf",
-                    truckModel, harnessId, harnessId);
-            case "wiring" -> String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.pdf",
-                    truckModel, harnessId, harnessId);
-            case "powerflow" -> String.format("cdn/v1/%s/harnesses/%s/powerflow/%s_powerflow.mp4",
-                    truckModel, harnessId, harnessId);
-            case "repair" -> String.format("cdn/v1/%s/harnesses/%s/repair/%s_repair.mp4",
-                    truckModel, harnessId, harnessId);
+            case "info" -> String.format("cdn/v1/%s/harnesses/%s/info/%s_info.%s",
+                    truckModel, harnessId, harnessId, ext);
+            case "troubleshooting" -> String.format("cdn/v1/%s/harnesses/%s/troubleshooting/%s_troubleshooting.%s",
+                    truckModel, harnessId, harnessId, ext);
+            case "wiring" -> String.format("cdn/v1/%s/harnesses/%s/wiring/%s_wiring.%s",
+                    truckModel, harnessId, harnessId, ext);
+            case "powerflow" -> String.format("cdn/v1/%s/harnesses/%s/powerflow/%s_powerflow.%s",
+                    truckModel, harnessId, harnessId, ext);
+            case "repair" -> String.format("cdn/v1/%s/harnesses/%s/repair/%s_repair.%s",
+                    truckModel, harnessId, harnessId, ext);
             default -> String.format("cdn/v1/%s/harnesses/%s/%s/%s",
                     truckModel, harnessId, category, originalFilename);
         };
+    }
+
+    public UploadedFileResponse upload3dModel(String truckModel, String harnessId, MultipartFile file)
+            throws Exception {
+        return s3.upload3dModel(truckModel, harnessId, file);
     }
 
     public HarnessValidationResult validateHarness(String truckModel, String harnessId) {

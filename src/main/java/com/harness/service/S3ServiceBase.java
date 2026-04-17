@@ -180,4 +180,13 @@ public abstract class S3ServiceBase {
          * Delete every file under cdn/v1/{truckModel}/workshopmanual/.
          */
         public abstract void deleteAllWorkshopManualFiles(String truckModel) throws Exception;
+
+        // ── 3D Model (per-harness slot at cdn/v1/{truckModel}/harnesses/{harnessId}/) ──
+
+        /**
+         * Upload (and replace if existing) a 3D model file for the given harness.
+         * Stored at {@code cdn/v1/{truckModel}/harnesses/{harnessId}/{harnessId}.{ext}}.
+         */
+        public abstract com.harness.dtos.UploadedFileResponse upload3dModel(
+                        String truckModel, String harnessId, MultipartFile file) throws Exception;
 }

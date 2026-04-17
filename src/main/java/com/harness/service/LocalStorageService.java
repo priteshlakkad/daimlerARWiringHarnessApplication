@@ -669,4 +669,21 @@ public class LocalStorageService extends S3ServiceBase {
         deleteDirectoryRecursively(dir);
         log.info("All workshop manuals deleted for truckModel={}", truckModel);
     }
+
+    // ── 3D Model (per-harness slot at cdn/v1/{truckModel}/harnesses/{harnessId}/) ──
+
+    @Override
+    public com.harness.dtos.UploadedFileResponse upload3dModel(
+            String truckModel, String harnessId, MultipartFile file) throws Exception {
+        String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("model.bin");
+        String ext = originalName.contains(".")
+                ? originalName.substring(originalName.lastIndexOf('.') + 1)
+                : "bin";
+        String key = String.format("cdn/v1/%s/harnesses/%s/%s.%s", truckModel, harnessId, harnessId, ext);
+        Path dest = Paths.get(storagePath, key);
+        Files.createDirectories(dest.getParent());
+        Files.write(dest, file.getBytes());
+        log.info("3D model uploaded to local storage: {}", dest);
+        return new com.harness.dtos.UploadedFileResponse(key, getPublicUrl(key));
+    }
 }

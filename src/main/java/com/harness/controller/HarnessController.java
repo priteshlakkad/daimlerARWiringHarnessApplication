@@ -257,6 +257,39 @@ public class HarnessController {
                 }
         }
 
+        // ─── POST /truckModel/{truckModel}/harnesses/{harnessId}/3d-model ────────────
+
+        @PostMapping(value = "/{truckModel}/harnesses/{harnessId}/3d-model", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @Operation(summary = "Upload 3D model for a harness", description = "Uploads a 3D model file (e.g. .glb, .gltf, .fbx) for a harness. "
+                        + "Stored at cdn/v1/{truckModel}/harnesses/{harnessId}/{harnessId}.{ext}.", responses = {
+                                        @ApiResponse(responseCode = "200", description = "3D model uploaded successfully"),
+                                        @ApiResponse(responseCode = "400", description = "No file provided"),
+                                        @ApiResponse(responseCode = "500", description = "Upload failed")
+                        })
+        public ResponseEntity<Map<String, Object>> upload3dModel(
+                        @Parameter(name = "truckModel", description = "Truck model", example = "ACTROS") @PathVariable("truckModel") String truckModel,
+                        @Parameter(name = "harnessId", description = "Harness ID", example = "HARN123") @PathVariable("harnessId") String harnessId,
+                        @RequestParam("file") MultipartFile file) {
+                if (file == null || file.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                        .body(Map.of("success", false, "message", "No file provided"));
+                }
+                try {
+                        UploadedFileResponse result = harnessService.upload3dModel(truckModel, harnessId, file);
+                        log.info("3D model uploaded: truckModel={}, harnessId={}, key={}", truckModel, harnessId, result.getKey());
+                        return ResponseEntity.ok(Map.of(
+                                        "success", true,
+                                        "truckModel", truckModel,
+                                        "harnessId", harnessId,
+                                        "key", result.getKey(),
+                                        "url", result.getUrl()));
+                } catch (Exception e) {
+                        log.error("Failed to upload 3D model: truckModel={}, harnessId={}", truckModel, harnessId, e);
+                        return ResponseEntity.internalServerError()
+                                        .body(Map.of("success", false, "message", "Upload failed: " + e.getMessage()));
+                }
+        }
+
         // ─── POST /truckModel/{truckModel}/harnesses/{harnessId}/validate ────────────
 
         @PostMapping("/{truckModel}/harnesses/{harnessId}/validate")

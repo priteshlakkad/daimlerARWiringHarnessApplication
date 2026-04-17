@@ -192,4 +192,11 @@ public class DummyS3Service extends S3ServiceBase {
     public void deleteAllWorkshopManualFiles(String truckModel) {
         log.warn("S3 is disabled. deleteAllWorkshopManualFiles skipped for truckModel={}", truckModel);
     }
+
+    @Override
+    public com.harness.dtos.UploadedFileResponse upload3dModel(
+            String truckModel, String harnessId, org.springframework.web.multipart.MultipartFile file) {
+        log.warn("S3 is disabled. upload3dModel skipped for truckModel={}, harnessId={}", truckModel, harnessId);
+        return new com.harness.dtos.UploadedFileResponse("", "");
+    }
 }
