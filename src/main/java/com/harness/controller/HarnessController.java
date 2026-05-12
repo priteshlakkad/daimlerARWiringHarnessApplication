@@ -159,6 +159,18 @@ public class HarnessController {
                 return ResponseEntity.ok(Map.of("truckModel", truckModel, "harnessIds", ids, "count", ids.size()));
         }
 
+        // ─── GET /truckModel/{truckModel}/troubleshooting-and-workshopmanual ───────────
+
+        @GetMapping("/{truckModel}/troubleshooting-and-workshopmanual")
+        @Operation(summary = "Get all troubleshooting and workshop manual files for a truck model", description = "Returns all files from the troubleshooting folders (across all harnesses) and the workshopmanual folder for the given truck model")
+        public ResponseEntity<GetHarnessResponse> getTroubleshootingAndWorkshopManualFiles(
+                        @Parameter(name = "truckModel", description = "Truck model ID", example = "ACTROS") @PathVariable("truckModel") String truckModel,
+                        @RequestParam(defaultValue = "900") int ttlSeconds) {
+                List<UploadedFileResponse> files = harnessService.getTroubleshootingAndWorkshopManualFiles(truckModel,
+                                ttlSeconds);
+                return ResponseEntity.ok(new GetHarnessResponse(truckModel, "all", files));
+        }
+
         // ─── DELETE /truckModel/{truckModel} ─────────────────────────────────────────
 
         @DeleteMapping("/{truckModel}")

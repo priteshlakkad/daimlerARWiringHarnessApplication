@@ -86,21 +86,39 @@ public abstract class S3ServiceBase {
 
         /**
          * Upload a faultcode file.
-         * Stored at {@code cdn/v1/{truckModel}/faultcodes/{originalFilename}}.
+         * Stored at {@code cdn/v1/{truckModel}/faultcodes/{faultcodeId}/{originalFilename}}.
          */
-        public abstract void uploadFaultCodeFile(String truckModel, MultipartFile file)
+        public abstract void uploadFaultCodeFile(String truckModel, String faultcodeId, MultipartFile file)
                         throws Exception;
 
         /**
          * Return all file keys in the FaultCodes folder for the given truck model.
+         * Covers both legacy flat files and new faultcodeId-nested files.
          */
         public abstract List<String> getFaultCodeFiles(String truckModel);
 
         /**
-         * Delete a specific faultcode file.
+         * Return all file keys under {@code cdn/v1/{truckModel}/faultcodes/{faultcodeId}/}.
          */
-        public abstract void deleteFaultCodeFile(String truckModel, String fileName)
+        public abstract List<String> getFaultCodeFilesByFaultcodeId(String truckModel, String faultcodeId);
+
+        /**
+         * Delete the single file at
+         * {@code cdn/v1/{truckModel}/faultcodes/{faultcodeId}/{fileName}}.
+         */
+        public abstract void deleteFaultCodeFile(String truckModel, String faultcodeId, String fileName)
                         throws Exception;
+
+        /**
+         * Delete every file under {@code cdn/v1/{truckModel}/faultcodes/{faultcodeId}/}.
+         */
+        public abstract void deleteFaultCodeFolder(String truckModel, String faultcodeId) throws Exception;
+
+        /**
+         * Return all distinct faultcode IDs stored under
+         * {@code cdn/v1/{truckModel}/faultcodes/}.
+         */
+        public abstract List<String> listFaultcodeIds(String truckModel);
 
         /**
          * Return all file keys stored anywhere under cdn/v1/{truckModel}/.
@@ -189,4 +207,10 @@ public abstract class S3ServiceBase {
          */
         public abstract com.harness.dtos.UploadedFileResponse upload3dModel(
                         String truckModel, String harnessId, MultipartFile file) throws Exception;
+
+        /**
+         * Return all file keys in the troubleshooting (under harnesses) and
+         * workshopmanual folders for the given truck model.
+         */
+        public abstract List<String> listTroubleshootingAndWorkshopManualFiles(String truckModel);
 }

@@ -322,10 +322,14 @@ public class S3Service extends S3ServiceBase {
                 return "cdn/v1/" + truckModel + "/faultcodes/";
         }
 
+        private String getFaultCodeDir(String truckModel, String faultcodeId) {
+                return "cdn/v1/" + truckModel + "/faultcodes/" + faultcodeId + "/";
+        }
+
         @Override
-        public void uploadFaultCodeFile(String truckModel, MultipartFile file) throws IOException {
+        public void uploadFaultCodeFile(String truckModel, String faultcodeId, MultipartFile file) throws IOException {
                 String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
-                String key = getFaultCodeDir(truckModel) + originalName;
+                String key = getFaultCodeDir(truckModel, faultcodeId) + originalName;
 
                 PutObjectRequest req = PutObjectRequest.builder()
                                 .bucket(bucket)
@@ -347,6 +351,16 @@ public class S3Service extends S3ServiceBase {
         }
 
         @Override
+        public List<String> getFaultCodeFilesByFaultcodeId(String truckModel, String faultcodeId) {
+                String prefix = getFaultCodeDir(truckModel, faultcodeId);
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
         public List<String> listTruckFiles(String truckModel) {
                 String prefix = "cdn/v1/" + truckModel + "/";
                 ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
@@ -357,11 +371,9 @@ public class S3Service extends S3ServiceBase {
         }
 
         @Override
-        public void deleteFaultCodeFile(String truckModel, String fileName) throws Exception {
-                String key = getFaultCodeDir(truckModel) + fileName;
+        public void deleteFaultCodeFile(String truckModel, String faultcodeId, String fileName) throws Exception {
+                String key = getFaultCodeDir(truckModel, faultcodeId) + fileName;
 
-                // Check if object exists first to throw exception if not found, matching
-                // LocalStorage behavior
                 try {
                         s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
                 } catch (NoSuchKeyException e) {
@@ -369,6 +381,26 @@ public class S3Service extends S3ServiceBase {
                 }
 
                 s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        @Override
+        public void deleteFaultCodeFolder(String truckModel, String faultcodeId) throws Exception {
+                deleteByPrefix(getFaultCodeDir(truckModel, faultcodeId));
+        }
+
+        @Override
+        public List<String> listFaultcodeIds(String truckModel) {
+                String prefix = getFaultCodeDir(truckModel);
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .delimiter("/")
+                                .build());
+                return res.commonPrefixes().stream()
+                                .map(CommonPrefix::prefix)
+                                .map(p -> p.replace(prefix, "").replace("/", ""))
+                                .filter(s -> !s.isBlank())
+                                .collect(Collectors.toList());
         }
 
         // ── Bulk delete helper ───────────────────────────────────────────────────
@@ -516,6 +548,19 @@ public class S3Service extends S3ServiceBase {
         @Override
         public void deleteAllWorkshopManualFiles(String truckModel) throws Exception {
                 deleteByPrefix(getWorkshopManualDir(truckModel));
+        }
+
+        @Override
+        public List<String> listTroubleshootingAndWorkshopManualFiles(String truckModel) {
+                String prefix = "cdn/v1/" + truckModel + "/";
+                ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .build());
+                return res.contents().stream()
+                                .map(S3Object::key)
+                                .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/"))
+                                .collect(Collectors.toList());
         }
 
         // ── 3D Model (per-harness slot at cdn/v1/{truckModel}/harnesses/{harnessId}/) ──

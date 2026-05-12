@@ -150,6 +150,15 @@ public class HarnessService {
     }
 
     /**
+     * Get all troubleshooting and workshopmanual files for a specific truck model.
+     */
+    public List<UploadedFileResponse> getTroubleshootingAndWorkshopManualFiles(String truckModel, int ttlSeconds) {
+        return s3.listTroubleshootingAndWorkshopManualFiles(truckModel).stream()
+                .map(key -> new UploadedFileResponse(key, s3.presign(key, ttlSeconds)))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Return ALL files stored across every truck model folder (no filter).
      */
     public List<UploadedFileResponse> getAllFiles(int ttlSeconds) {

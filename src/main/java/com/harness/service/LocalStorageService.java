@@ -452,15 +452,18 @@ public class LocalStorageService extends S3ServiceBase {
         return "cdn/v1/" + truckModel + "/faultcodes";
     }
 
+    private String getFaultCodeDirLocal(String truckModel, String faultcodeId) {
+        return "cdn/v1/" + truckModel + "/faultcodes/" + faultcodeId;
+    }
+
     @Override
-    public void uploadFaultCodeFile(String truckModel, MultipartFile file) throws Exception {
-        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel));
+    public void uploadFaultCodeFile(String truckModel, String faultcodeId, MultipartFile file) throws Exception {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel, faultcodeId));
         Files.createDirectories(dir);
 
         String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
         Path dest = dir.resolve(originalName);
 
-        // Delete if already exists to ensure replacement if filenames match
         Files.deleteIfExists(dest);
 
         Files.write(dest, file.getBytes());
@@ -474,12 +477,29 @@ public class LocalStorageService extends S3ServiceBase {
             return new ArrayList<>();
         }
 
-        try (Stream<Path> files = Files.list(dir)) {
+        try (Stream<Path> files = Files.walk(dir)) {
             return files.filter(Files::isRegularFile)
                     .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
                     .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Failed to list FaultCode files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<String> getFaultCodeFilesByFaultcodeId(String truckModel, String faultcodeId) {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel, faultcodeId));
+        if (!Files.exists(dir)) {
+            return new ArrayList<>();
+        }
+
+        try (Stream<Path> files = Files.list(dir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list FaultCode files for truckModel={}, faultcodeId={}", truckModel, faultcodeId, e);
             return new ArrayList<>();
         }
     }
@@ -502,14 +522,38 @@ public class LocalStorageService extends S3ServiceBase {
     }
 
     @Override
-    public void deleteFaultCodeFile(String truckModel, String fileName) throws Exception {
-        Path filePath = Paths.get(storagePath, getFaultCodeDirLocal(truckModel), fileName);
+    public void deleteFaultCodeFile(String truckModel, String faultcodeId, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, getFaultCodeDirLocal(truckModel, faultcodeId), fileName);
         if (Files.exists(filePath)) {
             Files.delete(filePath);
             log.info("FaultCode file deleted from local storage: {}", filePath);
         } else {
             log.warn("FaultCode file NOT found for deletion: {}", filePath);
             throw new IOException("File not found: " + fileName);
+        }
+    }
+
+    @Override
+    public void deleteFaultCodeFolder(String truckModel, String faultcodeId) throws Exception {
+        Path dir = Paths.get(storagePath, getFaultCodeDirLocal(truckModel, faultcodeId));
+        deleteDirectoryRecursively(dir);
+        log.info("FaultCode folder deleted for truckModel={}, faultcodeId={}", truckModel, faultcodeId);
+    }
+
+    @Override
+    public List<String> listFaultcodeIds(String truckModel) {
+        Path faultcodesRoot = Paths.get(storagePath, getFaultCodeDirLocal(truckModel));
+        if (!Files.exists(faultcodesRoot)) {
+            return new ArrayList<>();
+        }
+        try (Stream<Path> dirs = Files.list(faultcodesRoot)) {
+            return dirs.filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list faultcode IDs for truckModel={}", truckModel, e);
+            return new ArrayList<>();
         }
     }
 
@@ -668,6 +712,26 @@ public class LocalStorageService extends S3ServiceBase {
         Path dir = Paths.get(storagePath, getWorkshopManualDirLocal(truckModel));
         deleteDirectoryRecursively(dir);
         log.info("All workshop manuals deleted for truckModel={}", truckModel);
+    }
+
+    @Override
+    public List<String> listTroubleshootingAndWorkshopManualFiles(String truckModel) {
+        try {
+            Path truckRoot = Paths.get(storagePath, "cdn/v1/" + truckModel);
+            if (!Files.exists(truckRoot)) {
+                return new ArrayList<>();
+            }
+            try (Stream<Path> paths = Files.walk(truckRoot)) {
+                return paths
+                        .filter(Files::isRegularFile)
+                        .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                        .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/"))
+                        .collect(Collectors.toList());
+            }
+        } catch (IOException e) {
+            log.error("Failed to list troubleshooting/workshopmanual files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
     }
 
     // ── 3D Model (per-harness slot at cdn/v1/{truckModel}/harnesses/{harnessId}/) ──

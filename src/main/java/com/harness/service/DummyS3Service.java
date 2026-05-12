@@ -108,8 +108,8 @@ public class DummyS3Service extends S3ServiceBase {
     }
 
     @Override
-    public void uploadFaultCodeFile(String truckModel, MultipartFile file) {
-        log.warn("S3 is disabled. uploadFaultCodeFile skipped for truckModel={}", truckModel);
+    public void uploadFaultCodeFile(String truckModel, String faultcodeId, MultipartFile file) {
+        log.warn("S3 is disabled. uploadFaultCodeFile skipped for truckModel={}, faultcodeId={}", truckModel, faultcodeId);
     }
 
     @Override
@@ -119,8 +119,25 @@ public class DummyS3Service extends S3ServiceBase {
     }
 
     @Override
-    public void deleteFaultCodeFile(String truckModel, String fileName) {
-        log.warn("S3 is disabled. deleteFaultCodeFile skipped for truckModel={}, fileName={}", truckModel, fileName);
+    public List<String> getFaultCodeFilesByFaultcodeId(String truckModel, String faultcodeId) {
+        log.debug("S3 is disabled. getFaultCodeFilesByFaultcodeId called for truckModel={}, faultcodeId={}", truckModel, faultcodeId);
+        return List.of();
+    }
+
+    @Override
+    public void deleteFaultCodeFile(String truckModel, String faultcodeId, String fileName) {
+        log.warn("S3 is disabled. deleteFaultCodeFile skipped for truckModel={}, faultcodeId={}, fileName={}", truckModel, faultcodeId, fileName);
+    }
+
+    @Override
+    public void deleteFaultCodeFolder(String truckModel, String faultcodeId) {
+        log.warn("S3 is disabled. deleteFaultCodeFolder skipped for truckModel={}, faultcodeId={}", truckModel, faultcodeId);
+    }
+
+    @Override
+    public List<String> listFaultcodeIds(String truckModel) {
+        log.debug("S3 is disabled. listFaultcodeIds called for truckModel={}", truckModel);
+        return List.of();
     }
 
     @Override
@@ -198,5 +215,11 @@ public class DummyS3Service extends S3ServiceBase {
             String truckModel, String harnessId, org.springframework.web.multipart.MultipartFile file) {
         log.warn("S3 is disabled. upload3dModel skipped for truckModel={}, harnessId={}", truckModel, harnessId);
         return new com.harness.dtos.UploadedFileResponse("", "");
+    }
+
+    @Override
+    public List<String> listTroubleshootingAndWorkshopManualFiles(String truckModel) {
+        log.debug("S3 is disabled. listTroubleshootingAndWorkshopManualFiles called for truckModel={}", truckModel);
+        return List.of();
     }
 }
