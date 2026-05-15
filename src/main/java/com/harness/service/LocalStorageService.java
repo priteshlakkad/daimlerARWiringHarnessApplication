@@ -725,7 +725,7 @@ public class LocalStorageService extends S3ServiceBase {
                 return paths
                         .filter(Files::isRegularFile)
                         .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
-                        .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/"))
+                        .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/") || key.contains("/faultcodes/"))
                         .collect(Collectors.toList());
             }
         } catch (IOException e) {

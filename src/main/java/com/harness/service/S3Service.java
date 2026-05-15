@@ -559,7 +559,7 @@ public class S3Service extends S3ServiceBase {
                                 .build());
                 return res.contents().stream()
                                 .map(S3Object::key)
-                                .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/"))
+                                .filter(key -> key.contains("/troubleshooting/") || key.contains("/workshopmanual/") || key.contains("/faultcodes/"))
                                 .collect(Collectors.toList());
         }
 
