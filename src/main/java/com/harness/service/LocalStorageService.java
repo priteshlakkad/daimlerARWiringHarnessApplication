@@ -659,6 +659,59 @@ public class LocalStorageService extends S3ServiceBase {
         log.info("All end devices deleted for truckModel={}", truckModel);
     }
 
+    // ── Config (per-truck multi-file slot at cdn/v1/{truckModel}/config/) ──
+
+    private String configDirLocal(String truckModel) {
+        return "cdn/v1/" + truckModel + "/config";
+    }
+
+    @Override
+    public void uploadConfigFile(String truckModel, MultipartFile file) throws Exception {
+        Path dir = Paths.get(storagePath, configDirLocal(truckModel));
+        Files.createDirectories(dir);
+
+        String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+        Path dest = dir.resolve(originalName);
+        Files.deleteIfExists(dest);
+        Files.write(dest, file.getBytes());
+        log.info("Config file uploaded to local storage: {}", dest);
+    }
+
+    @Override
+    public List<String> getConfigFiles(String truckModel) {
+        Path dir = Paths.get(storagePath, configDirLocal(truckModel));
+        if (!Files.exists(dir)) {
+            return new ArrayList<>();
+        }
+        try (Stream<Path> files = Files.list(dir)) {
+            return files.filter(Files::isRegularFile)
+                    .map(p -> Paths.get(storagePath).relativize(p).toString().replace("\\", "/"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            log.error("Failed to list config files for truckModel={}", truckModel, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public void deleteConfigFile(String truckModel, String fileName) throws Exception {
+        Path filePath = Paths.get(storagePath, configDirLocal(truckModel), fileName);
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+            log.info("Config file deleted from local storage: {}", filePath);
+        } else {
+            log.warn("Config file NOT found for deletion: {}", filePath);
+            throw new IOException("File not found: " + fileName);
+        }
+    }
+
+    @Override
+    public void deleteAllConfigFiles(String truckModel) throws Exception {
+        Path dir = Paths.get(storagePath, configDirLocal(truckModel));
+        deleteDirectoryRecursively(dir);
+        log.info("All config files deleted for truckModel={}", truckModel);
+    }
+
     // ── WorkshopManual (per-truck multi-file slot at cdn/v1/{truckModel}/workshopmanual/) ──
 
     private String getWorkshopManualDirLocal(String truckModel) {

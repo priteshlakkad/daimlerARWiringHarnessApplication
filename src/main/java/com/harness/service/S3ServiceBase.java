@@ -176,6 +176,29 @@ public abstract class S3ServiceBase {
          */
         public abstract void deleteAllEndDeviceFiles(String truckModel) throws Exception;
 
+        // ── Config (per-truck multi-file slot at cdn/v1/{truckModel}/config/) ──
+
+        /**
+         * Upload a config file.
+         * Stored at {@code cdn/v1/{truckModel}/config/{originalFilename}}.
+         */
+        public abstract void uploadConfigFile(String truckModel, MultipartFile file) throws Exception;
+
+        /**
+         * Return all file keys in the Config folder for the given truck model.
+         */
+        public abstract List<String> getConfigFiles(String truckModel);
+
+        /**
+         * Delete a specific config file.
+         */
+        public abstract void deleteConfigFile(String truckModel, String fileName) throws Exception;
+
+        /**
+         * Delete every file under cdn/v1/{truckModel}/config/.
+         */
+        public abstract void deleteAllConfigFiles(String truckModel) throws Exception;
+
         // ── WorkshopManual (per-truck multi-file slot at cdn/v1/{truckModel}/workshopmanual/) ──
 
         /**

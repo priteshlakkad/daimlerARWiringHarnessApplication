@@ -502,6 +502,48 @@ public class S3Service extends S3ServiceBase {
                 deleteByPrefix(endDeviceDir(truckModel));
         }
 
+        // ── Config (per-truck multi-file slot at cdn/v1/{truckModel}/config/) ──
+
+        private String configDir(String truckModel) {
+                return "cdn/v1/" + truckModel + "/config/";
+        }
+
+        @Override
+        public void uploadConfigFile(String truckModel, MultipartFile file) throws IOException {
+                String dir = configDir(truckModel);
+                String originalName = Optional.ofNullable(file.getOriginalFilename()).orElse("file");
+                String key = dir + originalName;
+                PutObjectRequest req = PutObjectRequest.builder()
+                                .bucket(bucket).key(key)
+                                .contentType(Optional.ofNullable(file.getContentType()).orElse("application/octet-stream"))
+                                .build();
+                s3.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        }
+
+        @Override
+        public List<String> getConfigFiles(String truckModel) {
+                String dir = configDir(truckModel);
+                ListObjectsV2Response res = s3.listObjectsV2(
+                                ListObjectsV2Request.builder().bucket(bucket).prefix(dir).build());
+                return res.contents().stream().map(S3Object::key).collect(Collectors.toList());
+        }
+
+        @Override
+        public void deleteConfigFile(String truckModel, String fileName) throws Exception {
+                String key = configDir(truckModel) + fileName;
+                try {
+                        s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+                } catch (NoSuchKeyException e) {
+                        throw new IOException("File not found in S3: " + fileName);
+                }
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
+
+        @Override
+        public void deleteAllConfigFiles(String truckModel) throws Exception {
+                deleteByPrefix(configDir(truckModel));
+        }
+
         // ── WorkshopManual (per-truck multi-file slot at cdn/v1/{truckModel}/workshopmanual/) ──
 
         private String getWorkshopManualDir(String truckModel) {

@@ -190,6 +190,27 @@ public class DummyS3Service extends S3ServiceBase {
     }
 
     @Override
+    public void uploadConfigFile(String truckModel, MultipartFile file) {
+        log.warn("S3 is disabled. uploadConfigFile skipped for truckModel={}", truckModel);
+    }
+
+    @Override
+    public List<String> getConfigFiles(String truckModel) {
+        log.debug("S3 is disabled. getConfigFiles called for truckModel={}", truckModel);
+        return List.of();
+    }
+
+    @Override
+    public void deleteConfigFile(String truckModel, String fileName) {
+        log.warn("S3 is disabled. deleteConfigFile skipped for truckModel={}, fileName={}", truckModel, fileName);
+    }
+
+    @Override
+    public void deleteAllConfigFiles(String truckModel) {
+        log.warn("S3 is disabled. deleteAllConfigFiles skipped for truckModel={}", truckModel);
+    }
+
+    @Override
     public void uploadWorkshopManualFile(String truckModel, MultipartFile file) {
         log.warn("S3 is disabled. uploadWorkshopManualFile skipped for truckModel={}", truckModel);
     }

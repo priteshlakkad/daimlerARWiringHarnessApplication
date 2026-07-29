@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class VinValidationData {
+public class TruckRequest {
+    private String vin;
     private String truckName;
     private String truckModel;
 }
